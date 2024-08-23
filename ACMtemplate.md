@@ -268,6 +268,69 @@ struct PresidentTree{
 };
 ```
 
+### 可持久化01trietree
+
+```cpp
+struct TRIE{
+    vector<array<int,2>> v;
+    vector<int> head;
+    vector<int> num;
+    TRIE(){
+        v.push_back({-1,-1});
+        head.push_back(0);
+        num.push_back(0);
+        int now=0;
+        for(int i=30;i>=0;i--){
+            v[now][0]=v.size();
+            num.push_back(1);
+            v.push_back({-1,-1});
+            now=v[now][0];
+        }
+    }
+    void insert(int x){
+        int base=head.back(),now=v.size();
+        head.push_back(v.size());
+        v.push_back({-1,-1});
+        num.push_back(0);
+        for(int i=30;i>=0;i--){
+            int cnt=x>>i&1;
+            if(base==-1) v[now][!cnt]=-1;
+            else v[now][!cnt]=v[base][!cnt];
+            v[now][cnt]=v.size();
+            v.push_back({0,0});
+            if(base==-1||v[base][cnt]==-1){
+                num.push_back(1);
+            }else{
+                num.push_back(num[v[base][cnt]]+1);
+            }
+            now=v[now][cnt];
+            if(base!=-1) base=v[base][cnt];
+        }
+    }
+    int query(int l,int r,int x){
+        int lnow,rnow;
+        if(l-1<0) lnow=-1;
+        else lnow=head[l-1];
+        rnow=head[r];
+        int ans=0;
+        for(int i=30;i>=0;i--){
+            int cnt=x>>i&1;
+            if(v[rnow][!cnt]!=-1&&num[v[rnow][!cnt]]&&(lnow==-1||v[lnow][!cnt]==-1||num[v[rnow][!cnt]]>num[v[lnow][!cnt]])){
+                ans|=1ll<<i;
+                if(lnow!=-1) lnow=v[lnow][!cnt];
+                rnow=v[rnow][!cnt];
+            }else{
+                if(lnow!=-1) lnow=v[lnow][cnt];
+                rnow=v[rnow][cnt];
+            }
+        }
+        return ans;
+    }
+};
+```
+
+
+
 
 
 ### ST 表
@@ -2193,6 +2256,79 @@ struct MinCostFlow{
 ### 差分约束
 
 n元一次不等式组，包含n个变量x1……xn，以及m个约束条件，形如xi-xj<=ck，其中ck为常量。令dis0等于0，0向所有的点连一条点权为0的边，dis[i]<=dis[j]+ck，则j到i连一条长度为ck的边。如果存在负环则无解。
+
+### tarjan 找强连通分量
+
+```cpp
+function<void(int)> tarjan=[&](int x){
+        dfn[x]=low[x]=++cnt;
+        st.push(x);
+        instack[x]=1;
+        for(int &p:v[x]){
+            if(!dfn[p]){
+                tarjan(p);
+                low[x]=min(low[x],low[p]);
+            }else if(instack[p]){
+                low[x]=min(low[x],dfn[p]);
+            }
+        }
+        if(low[x]==dfn[x]){
+            ans.push_back({});
+            while(!st.empty()&&st.top()!=x){
+                int f=st.top();
+                st.pop();
+                ans.back().push_back(f);
+                belong[f]=ans.size();
+                instack[f]=0;
+            }
+            st.pop();
+            ans.back().push_back(x);
+            instack[x]=0;
+            belong[x]=ans.size();
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]) tarjan(i);
+    }
+```
+
+### tarjan找割点与桥
+
+如果某个顶点u，存在一个子节点v使得lowv>=dfnu，不能回到祖先，则u为割点，根节点需要单独考虑，如果遍历了一个子节点就可以将所有点都遍历完，那根节点就不是割点，否则是割点
+
+```cpp
+    int cnt=0;
+    vector<int> dfn(n+1,0),low(n+1,0);
+    vector<bool> flag(n+1,0);
+    function<void(int,int)> tarjan=[&](int x,int fa){
+        int son=0;
+        low[x]=dfn[x]=++cnt;
+        for(int &p:v[x]){
+            if(!dfn[p]){
+                son++;
+                tarjan(p,x);
+                low[x]=min(low[x],low[p]);
+                if(low[p]>=dfn[x]){
+                    flag[x]=1;
+                }
+            }else if(p!=fa){
+                low[x]=min(low[x],dfn[p]);
+            }
+        }
+        if(!fa&&son<=1){
+            flag[x]=0;
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]){
+            tarjan(i,0);
+        }
+    }
+```
+
+
+
+如果某个顶点u，存在一个子节点v使得lowv>dfnu，则u-v是割边
 
 ### 最短路
 
