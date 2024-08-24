@@ -2257,7 +2257,7 @@ struct MinCostFlow{
 
 n元一次不等式组，包含n个变量x1……xn，以及m个约束条件，形如xi-xj<=ck，其中ck为常量。令dis0等于0，0向所有的点连一条点权为0的边，dis[i]<=dis[j]+ck，则j到i连一条长度为ck的边。如果存在负环则无解。
 
-### tarjan 找强连通分量
+### 强连通分量
 
 ```cpp
 function<void(int)> tarjan=[&](int x){
@@ -2292,7 +2292,7 @@ function<void(int)> tarjan=[&](int x){
     }
 ```
 
-### tarjan找割点与桥
+### 割点与桥
 
 如果某个顶点u，存在一个子节点v使得lowv>=dfnu，不能回到祖先，则u为割点，根节点需要单独考虑，如果遍历了一个子节点就可以将所有点都遍历完，那根节点就不是割点，否则是割点
 
@@ -2326,9 +2326,189 @@ function<void(int)> tarjan=[&](int x){
     }
 ```
 
+如果某个顶点u，存在一个子节点v使得lowv>dfnu，则u-v是割边，不用特判根节点
+
+flag[x]=1，表示fa[x]->x是桥
+
+```cpp
+    int cnt=0;
+    vector<int> dfn(n+1,0),low(n+1,0);
+    vector<bool> flag(n+1,0);
+    function<void(int,int)> tarjan=[&](int x,int fa){
+        int son=0;
+        low[x]=dfn[x]=++cnt;
+        for(int &p:v[x]){
+            if(!dfn[p]){
+                son++;
+                tarjan(p,x);
+                low[x]=min(low[x],low[p]);
+                if(low[p]>dfn[x]){
+                    flag[p]=1;
+                }
+            }else if(p!=fa){
+                low[x]=min(low[x],dfn[p]);
+            }
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]){
+            tarjan(i,0);
+        }
+    }
+```
 
 
-如果某个顶点u，存在一个子节点v使得lowv>dfnu，则u-v是割边
+
+### 双联通分量
+
+#### 边双联通分量
+
+先求出桥，把割点删去，剩下的极大联通子图就是边双联通分量，不能用常规方法存图
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    vector<vector<int>> v(n+1);
+    vector<int> e;
+    for(int i=1;i<=m;i++){
+        int x,y;
+        cin>>x>>y;
+        v[x].push_back(e.size());
+        e.push_back(y);
+        v[y].push_back(e.size());
+        e.push_back(x);
+    }
+    int cnt=0;
+    vector<int> dfn(n+1,0),low(n+1,0);
+    vector<bool> flag(e.size(),0);
+    function<void(int,int)> tarjan=[&](int x,int laste){
+        low[x]=dfn[x]=++cnt;
+        for(int &p:v[x]){
+            int to=e[p];
+            if(p==(laste^1)) continue;
+            if(!dfn[to]){
+                tarjan(to,p);
+                low[x]=min(low[x],low[to]);
+                if(low[to]>dfn[x]){
+                    flag[p]=flag[p^1]=1;
+                }
+            }else{
+                low[x]=min(low[x],dfn[to]);
+            }
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]){
+            tarjan(i,2*m);
+        }
+    }
+    vector<bool> vis(n+1,0);
+    vector<vector<int>> ebcc;
+    function<void(int,int)> dfs=[&](int x,int id){
+        ebcc[id].push_back(x);
+        vis[x]=1;
+        for(int &p:v[x]){
+            if(vis[e[p]]||flag[p]) continue;
+            dfs(e[p],id);
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!vis[i]){
+            ebcc.push_back({});
+            dfs(i,ebcc.size()-1);
+        }
+    }
+    cout<<ebcc.size()<<"\n";
+    for(auto &p:ebcc){
+        cout<<p.size()<<" ";
+        for(auto &q:p){
+            cout<<q<<" ";
+        }
+        cout<<"\n";
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    vector<vector<int>> v(n+1);
+    vector<int> e;
+    for(int i=1;i<=m;i++){
+        int x,y;
+        cin>>x>>y;
+        v[x].push_back(e.size());
+        e.push_back(y);
+        v[y].push_back(e.size());
+        e.push_back(x);
+    }
+    int cnt=0;
+    vector<int> dfn(n+1,0),low(n+1,0);
+    vector<bool> flag(e.size(),0);
+    stack<int> st;
+    vector<vector<int>> ebcc;
+    function<void(int,int)> tarjan=[&](int x,int laste){
+        low[x]=dfn[x]=++cnt;
+        st.push(x);
+        for(int &p:v[x]){
+            int to=e[p];
+            if(p==(laste^1)) continue;
+            if(!dfn[to]){
+                tarjan(to,p);
+                low[x]=min(low[x],low[to]);
+            }else{
+                low[x]=min(low[x],dfn[to]);
+            }
+        }
+        if(dfn[x]==low[x]){
+            ebcc.push_back({});
+            while(!st.empty()&&st.top()!=x){
+                ebcc.back().push_back(st.top());
+                st.pop();
+            }
+            ebcc.back().push_back(x);
+            st.pop();
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]){
+            tarjan(i,2*m);
+        }
+    }
+    cout<<ebcc.size()<<"\n";
+    for(auto &p:ebcc){
+        cout<<p.size()<<" ";
+        for(auto &q:p){
+            cout<<q<<" ";
+        }
+        cout<<"\n";
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+
 
 ### 最短路
 
