@@ -2508,6 +2508,94 @@ signed main(){
 }
 ```
 
+#### 点双联通分量
+
+两个点双最多有一个公共点，且一定是割点。
+
+对于一个点双，他在dfs搜索树中dfn值最小的一定是割点或者树根
+
+当一个点是割点的时候，他一定是点双的根
+
+当一个点是树根的时候：
+
+如果有两个及以上的子树，他是割点
+
+只有一个子树，他是一个点双的根
+
+没有子树，他自己是一个点双
+
+需要特判自环的情况
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    vector<vector<int>> v(n+1);
+    for(int i=1;i<=m;i++){
+        int x,y;
+        cin>>x>>y;
+        if(x!=y){
+            v[x].push_back(y);
+            v[y].push_back(x);
+        }
+    }
+    int cnt=0;
+    vector<int> dfn(n+1,0),low(n+1,0);
+    stack<int> st;
+    vector<vector<int>> pbcc;
+    function<void(int,int)> tarjan=[&](int x,int root){
+        low[x]=dfn[x]=++cnt;
+        st.push(x);
+        if(x==root&&v[x].size()==0){
+            pbcc.push_back({});
+            pbcc.back().push_back(x);
+            return;
+        }
+        for(int &p:v[x]){
+            if(!dfn[p]){
+                tarjan(p,root);
+                low[x]=min(low[x],low[p]);
+                if(low[p]>=dfn[x]){
+                    pbcc.push_back({});
+                    while(!st.empty()&&st.top()!=p){
+                        pbcc.back().push_back(st.top());
+                        st.pop();
+                    }
+                    pbcc.back().push_back(p);
+                    st.pop();
+                    pbcc.back().push_back(x);
+                }
+            }else{
+                low[x]=min(low[x],dfn[p]);
+            }
+        }
+    };
+    for(int i=1;i<=n;i++){
+        if(!dfn[i]){
+            tarjan(i,i);
+        }
+    }
+    cout<<pbcc.size()<<"\n";
+    for(auto &p:pbcc){
+        cout<<p.size()<<" ";
+        for(auto &q:p){
+            cout<<q<<" ";
+        }
+        cout<<"\n";
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
 
 
 ### 最短路
