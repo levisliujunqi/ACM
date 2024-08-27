@@ -1454,7 +1454,7 @@ struct EulerSieve{
     vector<int> prime;
     vector<int> v;
     int n;
-    EulerSieve(int n):v(n){
+    EulerSieve(int n):v(n+1){
         this->n=n;
         for(int i=2;i<=n;i++){
             if(v[i]==0){
@@ -1696,6 +1696,103 @@ int quickpow(int x,int y,int mod){
         if(y&1) ans=ans*base%mod;
         base=base*base%mod;
         y>>=1;
+    }
+    return ans;
+}
+```
+
+### 线性基
+
+解决异或问题。原序列里的每一个数都可以由线性基里面的一些数异或得到，线性基里面任意一些数异或起来不等于0，线性基里面的数的个数唯一，且数的个数是最小的。
+
+##### 插入
+
+d[i]存最高位1在第i位的数
+
+对于每个数x，假设最高位的1在第i位，如果d[i]等于0，d[i]=x，插入完成，否则x^=d[i]，继续插入
+
+```cpp
+void insert(int x){
+    for(int i=51;i>=0;i--){
+        if(x>>i&1){
+            if(p[i]) x^=p[i];
+            else{
+                p[i]=x;
+                break;
+            }
+        }
+    }
+}
+```
+
+##### 查询某个数能否被异或出来
+
+```cpp
+bool ask(int x){
+    for(int i=51;i>=0;i--){
+        if(x>>i&1){
+            x^=p[i];
+        }
+    }
+    return x==0;
+}
+```
+
+##### 查询异或最大值
+
+```cpp
+int askmx(int x){
+    int ans=0;
+    for(int i=51;i>=0;i--){
+        if((ans^p[i])>ans) ans^=p[i];    
+    }
+    return ans;
+}
+```
+
+##### 查询异或最小值
+
+```cpp
+int askminn(int x){
+    for(int i=51;i>=0;i--){
+        if(!p[i]){
+            return p[i];
+        } 
+    }
+    for(int i=0;i<=51;i++){
+        if(p[i]) return p[i];
+    }
+}
+```
+
+##### 查询异或第k小
+
+重构一个各个位之间互不影响的d数组
+
+```cpp
+void rebuild(){
+    for(int i=51;i>=0;i--){
+        for(int j=i-1;j>=0;j--){
+            if(p[i]>>j&1) p[i]^=p[j];
+        }
+    }
+    for(int i=0;i<=51;i++){
+        if(p[i]){
+            d.push_back(p[i]);
+        }
+    }
+}
+```
+
+```cpp
+int querykth(int k){
+    if(count(p.begin(),p.end(),0)){
+        if(k==1) return 0;
+        k--;
+    }
+    int ans=0;
+    for(int i=d.size()-1;i>=0;i--){
+        if(k>>i&1) ans^=d[i];
     }
     return ans;
 }
