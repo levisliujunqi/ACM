@@ -107,7 +107,7 @@ struct SegmentTree{
         function<void(int,int,int)> buildtree=[&](int id,int l,int r){
             lazy[id]=0;
             if(l==r){
-                node[id].sum=0;
+                node[id].sum=v[l];
                 return;
             }
             int mid=l+(r-l>>1);
@@ -364,7 +364,9 @@ struct ST{
 vector<int> ST::Log2;
 ```
 
+### 猫树
 
+$O(nlogn)$次合并，查询时$O(1)$次合并查询
 
 ## 字符串
 
@@ -3057,6 +3059,8 @@ signed main(){
 
 两次dfs，第一次求出fa，dep，son，sz，第二次求出dfn，top，rnk（dfs序对应的点编号）。
 
+点权，要先init
+
 ```cpp
 struct HLD{
     int n;
@@ -3328,6 +3332,94 @@ s[i]中：
 ⑤如果是右括号，将符号栈顶部第一个左括号之前的符号弹出并压入结果栈，并弹出左括号
 
 最后将符号栈中剩余的符号都弹出并压入结果栈
+
+### 树哈希
+
+用于判断树是否同构
+
+以某个节点为根的子树的哈希值，就是以它的所有儿子为根的子树的哈希值构成的多重集的哈希值
+
+$h_x=f(\{h_i|i \in son(x) \})$
+
+其中哈希函数为：$f(S)=(c+\sum_{x\in s}g(x)) mod~m$
+
+其中c为常数，一般使用1。g为整数到整数的映射
+
+m棵树，每行第一个数n表示点数，接下来n个数表示每个点的父节点。找出与每个树同构的树的最小编号。
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+const int MOD=1e9+7;
+mt19937_64 myrnd(time(0));
+int rnd(){
+    return myrnd()>>1;
+}
+map<int,int> mp;
+int gethash(int x){
+    if(mp.find(x)!=mp.end()) return mp[x];
+    else return mp[x]=rnd();
+}
+void solve(){
+    int m;
+    cin>>m;
+    map<int,int> mp1;
+    for(int i=0;i<m;i++){
+        int n;
+        cin>>n;
+        vector<vector<int>> v(n+1);
+        int root;
+        for(int j=1;j<=n;j++){
+            int x;
+            cin>>x;
+            if(x==0) root=j;
+            else v[x].push_back(j);
+        }
+        vector<int> hash(n+1);
+        function<void(int,int)> dfs1=[&](int x,int fa){
+            hash[x]=1;
+            for(int &p:v[x]){
+                if(p==fa) continue;
+                dfs1(p,x);
+                hash[x]=(hash[x]+gethash(hash[p]))%MOD;
+            }
+        };
+        dfs1(root,0);
+        set<int> se;
+        function<void(int,int)> dfs2=[&](int x,int fa){
+            se.insert(hash[x]);
+            for(int &p:v[x]){
+                if(p==fa) continue;
+                int a=hash[x],b=hash[p];
+                hash[x]=((hash[x]-gethash(hash[p]))%MOD+MOD)%MOD;
+                hash[p]=(hash[p]+gethash(hash[x]))%MOD;
+                dfs2(p,x);
+                hash[x]=a,hash[p]=b;
+            }
+        };
+        dfs2(root,0);
+        int ans=i+1;
+        for(auto &p:se){
+            if(mp1.find(p)==mp1.end()){
+                mp1[p]=i+1;
+            }else{
+                ans=min(ans,mp1[p]);
+            }
+        }
+        cout<<ans<<"\n";
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+
 
 ## 计算几何
 
