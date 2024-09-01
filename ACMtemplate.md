@@ -146,6 +146,57 @@ struct SegmentTree{
 };
 ```
 
+### 线段树标记永久化
+
+```cpp
+struct SegmentTree{
+    struct edge{
+        int sum,lazy;
+        edge(){
+            sum=lazy=0;
+        }
+    };
+    int n;
+    vector<edge> node;
+    SegmentTree(int n):n(n){
+        node.resize(n*4+5);
+    }
+    void update(int x,int y,int delta){
+        auto upd=[&](auto self,int id,int l,int r,int x,int y,int delta){
+            node[id].sum+=delta*(min(y,r)-max(l,x)+1);
+            if(x<=l&&r<=y){
+                node[id].lazy+=delta;
+                return;
+            }
+            int mid=l+(r-l>>1);
+            if(x<=mid) self(self,id<<1,l,mid,x,y,delta);
+            if(y>mid) self(self,id<<1|1,mid+1,r,x,y,delta);
+        };
+        upd(upd,1,1,n,x,y,delta);
+    }
+    int query(int x,int y){
+        auto que=[&](auto self,int id,int l,int r,int x,int y,int lz){
+            if(x<=l&&r<=y){
+                return node[id].sum+lz*(r-l+1);
+            }
+            int ans=0;
+            int mid=l+(r-l>>1);
+            lz+=node[id].lazy;
+            if(x<=mid){
+                ans+=self(self,id<<1,l,mid,x,y,lz);
+            }
+            if(y>mid){
+                ans+=self(self,id<<1|1,mid+1,r,x,y,lz);
+            }
+            return ans;
+        };
+        return que(que,1,1,n,x,y,0);
+    }
+};
+```
+
+
+
 ### 并查集
 
 ```c++
@@ -363,6 +414,388 @@ struct ST{
 };
 vector<int> ST::Log2;
 ```
+
+### 权值线段树
+
+```cpp
+struct SegmentTree{
+    struct edge{
+        int sum,lson,rson;
+    };
+    int l,r;
+    int cnt;
+    vector<edge> node;
+    SegmentTree(int l,int r):l(l),r(r){
+        cnt=1;
+        node.push_back({0,0,0});
+        node.push_back({0,0,0});
+    }
+    void pushup(int id,int l,int r){
+        node[id].sum=0;
+        if(node[id].lson) node[id].sum+=node[node[id].lson].sum;
+        if(node[id].rson) node[id].sum+=node[node[id].rson].sum;
+    }
+    void update(int x,int delta){
+        function<void(int,int,int,int,int)> upd=[&](int id,int l,int r,int x,int delta){
+            if(l==r){
+                node[id].sum+=delta;
+                return;
+            }
+            int mid=l+(r-l>>1);
+            if(x<=mid){
+                if(!node[id].lson){
+                    node[id].lson=++cnt;
+                    node.push_back({0,0,0});
+                }
+                upd(node[id].lson,l,mid,x,delta);
+            }else{
+                if(!node[id].rson){
+                    node[id].rson=++cnt;
+                    node.push_back({0,0,0});
+                }
+                upd(node[id].rson,mid+1,r,x,delta);
+            }
+            pushup(id,l,r);
+        };
+        upd(1,l,r,x,delta);
+    }
+    int query(int x,int y){
+        function<int(int,int,int,int,int)> que=[&](int id,int l,int r,int x,int y){
+            if(x<=l&&r<=y) return node[id].sum;
+            int ans=0;
+            int mid=l+(r-l>>1);
+            if(x<=mid&&node[id].lson){
+                ans+=que(node[id].lson,l,mid,x,y);
+            }
+            if(y>mid&&node[id].rson){
+                ans+=que(node[id].rson,mid+1,r,x,y);
+            }
+            return ans;
+        };
+        return que(1,l,r,x,y);
+    }
+};
+```
+
+### 树套树
+
+#### 树状数组套权值线段树
+
+区间kth等的问题，用树状数组来实现权值线段树的区间求和
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+struct SegmentTree{
+    struct edge{
+        int sum,lson,rson;
+    };
+    int l,r;
+    int cnt;
+    vector<edge> node;
+    SegmentTree(int l,int r):l(l),r(r){
+        cnt=1;
+        node.push_back({0,0,0});
+        node.push_back({0,0,0});
+    }
+    void pushup(int id,int l,int r){
+        node[id].sum=0;
+        if(node[id].lson) node[id].sum+=node[node[id].lson].sum;
+        if(node[id].rson) node[id].sum+=node[node[id].rson].sum;
+    }
+    void update(int x,int delta){
+        function<void(int,int,int,int,int)> upd=[&](int id,int l,int r,int x,int delta){
+            //cerr<<l<<" "<<r<<"\n";
+            if(l==r){
+                node[id].sum+=delta;
+                return;
+            }
+            int mid=l+(r-l>>1);
+            if(x<=mid){
+                if(!node[id].lson){
+                    node[id].lson=++cnt;
+                    node.push_back({0,0,0});
+                }
+                upd(node[id].lson,l,mid,x,delta);
+            }else{
+                if(!node[id].rson){
+                    node[id].rson=++cnt;
+                    node.push_back({0,0,0});
+                }
+                upd(node[id].rson,mid+1,r,x,delta);
+            }
+            pushup(id,l,r);
+        };
+        upd(1,l,r,x,delta);
+    }
+    int query(int x,int y){
+        function<int(int,int,int,int,int)> que=[&](int id,int l,int r,int x,int y){
+            if(x<=l&&r<=y) return node[id].sum;
+            int ans=0;
+            int mid=l+(r-l>>1);
+            if(x<=mid&&node[id].lson){
+                ans+=que(node[id].lson,l,mid,x,y);
+            }
+            if(y>mid&&node[id].rson){
+                ans+=que(node[id].rson,mid+1,r,x,y);
+            }
+            return ans;
+        };
+        return que(1,l,r,x,y);
+    }
+};
+struct BIT{
+    vector<SegmentTree> tree;
+    int n;
+    inline int lowbit(int x){
+        return x&(-x);
+    }
+    BIT(int n,int l,int r){
+        this->n=n;
+        tree.resize(n+1,SegmentTree(l,r));
+    }
+    void update(int x,int y,int delta){
+        for(int i=x;i<=n;i+=lowbit(i)){
+            tree[i].update(y,delta);
+        }
+    }
+    int query(int x,int y,int a,int b){
+        if(x>y) return 0;
+        int ans=0;
+        for(int i=y;i>=1;i-=lowbit(i)){
+            ans+=tree[i].query(a,b);
+        }
+        for(int i=x-1;i>=1;i-=lowbit(i)){
+            ans-=tree[i].query(a,b);
+        }
+        return ans;
+    }
+    int que(int l,int r,int x,int y,int k){
+        if(x==y) return x;
+        int mid=x+(y-x>>1);
+        int num=query(l,r,x,mid);
+        if(k<=num) return que(l,r,x,mid,k);
+        else return que(l,r,mid+1,y,k-num);
+    }
+};
+struct ss{
+    char c;
+    int x,y,z;
+};
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    vector<int> a(n+1);
+    vector<int> num;
+    vector<ss> query(m);
+    function<int(int)> getid=[&](int x){
+        return lower_bound(num.begin(),num.end(),x)-num.begin()+1;
+    };
+    for(int i=1;i<=n;i++){
+        cin>>a[i];
+        num.push_back(a[i]);
+    }
+    for(int i=0;i<m;i++){
+        cin>>query[i].c;
+        if(query[i].c=='Q'){
+            cin>>query[i].x>>query[i].y>>query[i].z;
+        }else{
+            cin>>query[i].x>>query[i].y;
+            num.push_back(query[i].y);
+        }
+    }
+    sort(num.begin(),num.end());
+    num.erase(unique(num.begin(),num.end()),num.end());
+    BIT bit(n,1,num.size());
+    for(int i=1;i<=n;i++) a[i]=getid(a[i]);
+    for(int i=0;i<m;i++){
+        if(query[i].c=='C'){
+            query[i].y=getid(query[i].y);
+        }
+    }
+    for(int i=1;i<=n;i++) bit.update(i,a[i],1);
+    for(int i=0;i<m;i++){
+        if(query[i].c=='Q'){
+            cout<<num[bit.que(query[i].x,query[i].y,1,num.size(),query[i].z)-1]<<"\n";
+        }else{
+            int x=query[i].x;
+            int y=query[i].y;
+            bit.update(x,a[x],-1);
+            bit.update(x,y,1);
+            a[x]=y;
+        }
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+#### 线段树套平衡树
+
+区间排名，单点修改，找区间前驱后继
+
+```cpp
+#include<bits/stdc++.h>
+#include<bits/extc++.h>
+using namespace std;
+#define int long long
+const int INF=1e18;
+struct SegmentTree{
+    struct edge{
+        __gnu_pbds::tree<std::pair<int,int>,__gnu_pbds::null_type,
+                    std::less<pair<int,int>>,__gnu_pbds::rb_tree_tag,
+                    __gnu_pbds::tree_order_statistics_node_update>
+                    tree;
+    };
+    vector<edge> node;
+    int n;
+    int clock;
+    SegmentTree(int n):n(n){
+        node.resize((n<<2)+5);
+        clock=0;
+    }
+    SegmentTree(){}
+    void init(vector<pair<int,int>> &v){
+        function<void(int,int,int)> buildtree=[&](int id,int l,int r){
+            for(int i=l;i<=r;i++){
+                node[id].tree.insert(v[i]);
+            }
+            if(l==r) return;
+            int mid=l+(r-l>>1);
+            buildtree(id<<1,l,mid);
+            buildtree(id<<1|1,mid+1,r);
+        };
+        buildtree(1,1,n);
+    }
+    SegmentTree(int n,vector<pair<int,int>> &v):n(n){
+        node.resize((n<<2)+5);
+        init(v);
+    }
+    void update(int w,pair<int,int> x,pair<int,int> y){
+        function<void(int,int,int,int,pair<int,int>,pair<int,int>)> upd=[&](int id,int l,int r,int w,pair<int,int> x,pair<int,int> y){
+            node[id].tree.erase(x);
+            node[id].tree.insert(y);
+            if(l==r){
+                return;
+            }
+            int mid=l+(r-l>>1);
+            if(w<=mid) upd(id<<1,l,mid,w,x,y);
+            else upd(id<<1|1,mid+1,r,w,x,y);
+        };
+        upd(1,1,n,w,x,y);
+    }
+    int querynum(int id,int l,int r,int x,int y,int t){
+        if(x<=l&&r<=y) return (int)node[id].tree.order_of_key({t,0});
+        int ans=0;
+        int mid=l+(r-l>>1);
+        if(x<=mid){
+            ans+=querynum(id<<1,l,mid,x,y,t);
+        }
+        if(y>mid){
+            ans+=querynum(id<<1|1,mid+1,r,x,y,t);
+        }
+        return ans;
+    };
+    int queryrnk(int l,int r,int x){
+        return querynum(1,1,n,l,r,x)+1;
+    }
+    int querybyrnk(int x,int y,int k){
+        int l=0,r=1e8,ans=-1;
+        while(l<=r){
+            int mid=l+(r-l>>1);
+            int num=querynum(1,1,n,x,y,mid);
+            if(num<=k-1){
+                ans=mid;
+                l=mid+1;
+            }else r=mid-1;
+        }
+        return ans;
+    }
+    int querypre(int x,int y,int k){
+        function<int(int,int,int,int,int,int)> query=[&](int id,int l,int r,int x,int y,int t){
+            if(x<=l&&r<=y){
+                auto it=node[id].tree.lower_bound({t,0});
+                if(it==node[id].tree.begin()) return -2147483647ll;
+                --it;
+                return it->first;
+            }
+            int mid=l+(r-l>>1);
+            int ans=-2147483647ll;
+            if(x<=mid) ans=max(ans,query(id<<1,l,mid,x,y,t));
+            if(y>mid) ans=max(ans,query(id<<1|1,mid+1,r,x,y,t));
+            return ans;
+        };
+        return query(1,1,n,x,y,k);
+    }
+    int querynxt(int x,int y,int k){
+        function<int(int,int,int,int,int,int)> query=[&](int id,int l,int r,int x,int y,int t){
+            if(x<=l&&r<=y){
+                auto it=node[id].tree.upper_bound({t,INF});
+                if(it==node[id].tree.end()) return 2147483647ll;
+                return it->first;
+            }
+            int mid=l+(r-l>>1);
+            int ans=2147483647ll;
+            if(x<=mid) ans=min(ans,query(id<<1,l,mid,x,y,t));
+            if(y>mid) ans=min(ans,query(id<<1|1,mid+1,r,x,y,t));
+            return ans;
+        };
+        return query(1,1,n,x,y,k);
+    }
+};
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    vector<pair<int,int>> a(n+1);
+    int clock=0;
+    for(int i=1;i<=n;i++){
+        cin>>a[i].first;
+        a[i].second=++clock;
+    }
+    SegmentTree tree(n,a);
+    while(m--){
+        int op;
+        cin>>op;
+        if(op==1){
+            int l,r,k;
+            cin>>l>>r>>k;
+            cout<<tree.queryrnk(l,r,k)<<"\n";
+        }else if(op==2){
+            int l,r,k;
+            cin>>l>>r>>k;
+            cout<<tree.querybyrnk(l,r,k)<<"\n";
+        }else if(op==3){
+            int pos,k;
+            cin>>pos>>k;
+            tree.update(pos,a[pos],{k,++clock});
+            a[pos]={k,clock};
+        }else if(op==4){
+            int l,r,k;
+            cin>>l>>r>>k;
+            cout<<tree.querypre(l,r,k)<<"\n";
+        }else{
+            int l,r,k;
+            cin>>l>>r>>k;
+            cout<<tree.querynxt(l,r,k)<<"\n";
+        }
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+
 
 ### 猫树
 
@@ -1693,6 +2126,7 @@ struct Cantor{
 
 ```c++
 int quickpow(int x,int y,int mod){
+    if(x==0) return 0;
     int ans=1,base=x;
     while(y){
         if(y&1) ans=ans*base%mod;
@@ -2094,6 +2528,10 @@ signed main(){
 用于棋盘状态压缩，每个位置的每个棋子状态（例如（1,1）位置为黑棋）使用mt19937_64赋予一个随机值，最后整个棋盘的状态等于所有棋子的异或和
 
 ## 图论
+
+### Cayley 凯莱定理
+
+一个完全图不同的生成树的数量有$n^{n-2}$种
 
 ### 最小生成树
 
@@ -3773,5 +4211,70 @@ signed main(){
     while(t--) solve();
     return 0;
 }
+```
+
+## 平板电视
+
+```cpp
+#include<bits/extc++.h>
+using namespace __gnu_pbds;
+```
+
+#### 拉链法哈希
+
+```cpp
+cc_hash_table <int,int> f;
+```
+
+#### 红黑树
+
+```cpp
+__gnu_pbds::tree<Key, Mapped, Cmp_Fn = std::less<Key>, Tag = rb_tree_tag,
+                  Node_Update = null_tree_node_update,
+                  Allocator = std::allocator<char> >
+//如果要用order_of_key或find_by_order，node_update需要使用tree_order_statistics_node_update
+```
+
+```cpp
+__gnu_pbds::tree<std::pair<int, int>, __gnu_pbds::null_type,
+                 std::less<std::pair<int, int> >, __gnu_pbds::rb_tree_tag,
+                 __gnu_pbds::tree_order_statistics_node_update>
+    trr;
+```
+
+insert(x)：向树中插入一个元素 x，返回 std::pair<point_iterator, bool>。
+erase(x)：从树中删除一个元素/迭代器 x，返回一个 bool 表明是否删除成功。
+order_of_key(x)：返回 x 以 Cmp_Fn 比较的排名，**0开始**。
+find_by_order(x)：返回 Cmp_Fn 比较的排名所对应元素的迭代器。
+lower_bound(x)：以 Cmp_Fn 比较做 lower_bound，返回迭代器。
+upper_bound(x)：以 Cmp_Fn 比较做 upper_bound，返回迭代器。
+join(x)：将 x 树并入当前树，前提是两棵树的类型一样，x 树被删除。
+split(x,b)：以 Cmp_Fn 比较，小于等于 x 的属于当前树，其余的属于 b 树。
+empty()：返回是否为空。
+size()：返回大小。
+
+元素不可重，可以使用pair<int,int>加入时间戳来使元素可重
+
+```cpp
+//插入
+tr.insert({x,++cnt});
+//删除
+auto it=tr.lower_bound({x,0});
+if(it!=tr.end()) tr.erase(it);
+//查找元素排名
+tr.order_of_key({x,0})+1;
+//根据排名查找元素
+auto it=tr.find_by_order(x-1);
+if(it==tr.end()) continue;
+it->first;
+//前驱
+auto it=tr.lower_bound({x,0});
+if(it==tr.begin()) continue;
+it--;
+it->first;
+//后继
+auto it=tr.upper_bound({x,INF});
+if(it==tr.end()) continue;
+it->first;
 ```
 
