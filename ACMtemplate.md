@@ -100,7 +100,7 @@ struct SegmentTree{
     }
     SegmentTree(int n):n(n){
         node.resize((n<<2)+5);
-        lazy.assign((n<<2+5),0);
+        lazy.assign((n<<2)+5,0);
     }
     SegmentTree(){}
     void init(vector<int> &v){
@@ -1759,8 +1759,8 @@ $$
 
 $$
 H_n=\begin{cases}
-\sum_1^n H_{i-1}H_{n-i},n\ge2,n\in N_+\\
-1,n=0,1
+\sum_1^n H_{i-1}H_{n-i},n\ge2,&n\in N_+\\
+1,&n=0,1
 \end{cases}
 $$
 
@@ -1977,6 +1977,7 @@ template<int MOD>
 struct Comb{
     vector<int> jc,ijc;
     int quickpow(int x,int y){
+        x%=MOD;
         if(x==0) return 0;
         int ans=1,base=x;
         while(y){
@@ -2234,6 +2235,59 @@ int querykth(int k){
 }
 ```
 
+### 扩展欧拉定理
+
+$a^{b}\equiv\left\{
+\begin{array}{ll}
+a^{b\text{ mod}\varphi(m)}, & \text{if } \gcd(a, m)=1, \\
+a^{b}, & \text{if } \gcd(a, m) \neq 1 \text{ and } b < \varphi(m), \\
+a^{(b\text{ mod}\varphi(m))+\varphi(m)}, & \text{if } \gcd(a, m) \neq 1 \text{ and } b \geq \varphi(m). \\
+\end{array}
+\right.$
+
+### 扩展欧几里德
+
+```cpp
+int exgcd(int a,int b,int &x,int &y){
+	if(b==0){
+		x=1,y=0;
+		return a;
+	}
+	int x1,y1;
+	int p=exgcd(b,a%b,x1,y1);
+	x=y1;
+	y=(x1-a/b*y1);
+	return p;
+}
+```
+
+
+
+### 中国剩余定理
+
+$\left\{
+\begin{array}{l}
+x \equiv a_{1} \pmod{n_{1}} \\
+x \equiv a_{2} \pmod{n_{2}} \\
+\vdots \\
+x \equiv a_{k} \pmod{n_{k}}
+\end{array}
+\right.$
+
+其中n1……nk互质
+
+```cpp
+int CRT(vector<int> &a, vector<int> &r) {
+    int n=1,ans=0;
+    for(int i=0;i<r.size();i++) n=n*r[i];
+    for(int i=0;i<a.size();i++){
+        int m=n/r[i],b,y;
+        exgcd(m,r[i],b,y);
+        ans=(ans+a[i]*m*b%n)%n;
+    }
+    return (ans%n+n)%n;
+}
+```
 
 
 
@@ -2633,6 +2687,8 @@ const int INF=1e18;
 
 使流量f尽可能大，dinic算法，时间复杂度$O(mn^2)$
 
+二分图最大匹配时间复杂度$O(m\sqrt{n})$
+
 ```c++
 struct Flow{
     const int n;
@@ -2701,9 +2757,11 @@ struct Flow{
 
 根据最大流最小割定理，最大流=最小割，直接套用最大流即可
 
+dep[x]!=-1，表示属于割边，x与s联通
+
 #### 最小费用最大流
 
-在网络上对每条边(u,v)给定一个权值w(u,v)，称为费用，含义是单位流量通过(u,v)所花费的代价，对于G所有可能的最大流中总费用最小的为最小费用最大流，SSP算法，O(nmf)，其中f为网络最大流
+在网络上对每条边(u,v)给定一个权值w(u,v)，称为费用，含义是单位流量通过(u,v)所花费的代价，对于G所有可能的最大流中总费用最小的为最小费用最大流，SSP算法，$O(nm+n^2f)$，其中f为网络最大流
 
 ```c++
 struct MinCostFlow{
@@ -3847,6 +3905,218 @@ void solve(){
         }
         cout<<ans<<"\n";
     }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+    return 0;
+}
+```
+
+### 欧拉通路&回路
+
+Hierholzer
+
+```cpp
+auto dfs=[&](auto self,int x)->void{
+        for(;pos[x]<v[x].size();){
+            pos[x]++;
+            self(self,v[x][pos[x]-1]);
+        }
+        st.push(x);
+    };
+```
+
+```cpp
+stack<int> st;
+    auto dfs=[&](auto self,int x)->void{
+        while(pos[x]<v[x].size()){
+            int g=v[x][pos[x]];
+            if(use[g]){
+                pos[x]++;
+                continue;
+            }
+            use[g]=1;
+            use[g^1]=1;
+            pos[x]++;
+            self(self,e[g]);
+        }
+        st.push(x);
+    };
+    dfs(dfs,s);
+```
+
+```cpp
+void solve(){
+    int m;
+    cin>>m;
+    vector<int> e;
+    vector<int> in(501,0);
+    vector<int> pos(501,0);
+    vector<bool> use;
+    vector<vector<int>> v(501);
+    for(int i=1;i<=m;i++){
+        int x,y;
+        cin>>x>>y;
+        v[x].push_back(e.size());
+        e.push_back(y);
+        v[y].push_back(e.size());
+        e.push_back(x);
+        in[x]++;
+        in[y]++;
+        use.push_back(0);
+        use.push_back(0);
+    }
+    for(int i=1;i<=500;i++){
+        sort(v[i].begin(),v[i].end(),[&](int &a,int &b){
+            return e[a]<e[b];
+        });
+    }
+    vector<int> tmp,tmp1;
+    for(int i=1;i<=500;i++){
+        if(in[i]==0) continue;
+        if(in[i]%2==0){
+            tmp.push_back(i);
+        }else{
+            tmp1.push_back(i);
+        }
+    }
+    sort(tmp.begin(),tmp.end());
+    sort(tmp1.begin(),tmp1.end());
+    int s;
+    if(tmp1.size()!=0){
+        s=tmp1[0];
+    }else{
+        s=tmp[0];
+    }
+    stack<int> st;
+    auto dfs=[&](auto self,int x)->void{
+        while(pos[x]<v[x].size()){
+            if(use[v[x][pos[x]]]){
+                pos[x]++;
+                continue;
+            }
+            use[v[x][pos[x]]]=1;
+            use[v[x][pos[x]]^1]=1;
+            pos[x]++;
+            self(self,e[v[x][pos[x]-1]]);
+        }
+        st.push(x);
+    };
+    dfs(dfs,s);
+    while(!st.empty()){
+        cout<<st.top()<<"\n";
+        st.pop();
+    }
+}
+```
+
+### 最小路径覆盖
+
+最小路径覆盖为用最少的路径走过有向图所有点
+
+最小路径覆盖=点数-拆点后二分图最大匹配
+
+```cpp
+//每行输出一条路径，最后一行输出路径条数
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+struct Flow{
+    const int n;
+    const int MAXN=1e18;
+    vector<pair<int,int>> e;
+    vector<vector<int>> g;
+    vector<int> cur,dep;
+    Flow(int n):n(n),g(n+1){}
+    bool bfs(int s,int t){
+        dep.assign(n+1,-1);
+        queue<int> q;
+        dep[s]=0;
+        q.push(s);
+        while(!q.empty()){
+            const int u=q.front();
+            q.pop();
+            for(int i:g[u]){
+                auto [v,c]=e[i];
+                if(c>0&&dep[v]==-1){
+                    dep[v]=dep[u]+1;
+                    if(v==t) return 1;
+                    q.push(v);
+                }
+            }
+        }
+        return 0;
+    }
+    int dfs(int u,int t,int f){
+        if(u==t) return f;
+        int res=f;
+        for(int &i=cur[u];i<g[u].size();i++){
+            const int j=g[u][i];
+            auto [v,c]=e[j];
+            if(c>0&&dep[v]==dep[u]+1){
+                int out=dfs(v,t,min(res,c));
+                e[j].second-=out;
+                e[j^1].second+=out;
+                res-=out;
+                if(res==0) return f;
+            }
+        }
+        return f-res;
+    }
+    void add(int u,int v,int c){
+        g[u].push_back(e.size());
+        e.emplace_back(v,c);
+        g[v].push_back(e.size());
+        e.emplace_back(u,0);
+    }
+    int work(int s,int t){
+        int ans=0;
+        while(bfs(s,t)){
+            cur.assign(n+1,0);
+            ans+=dfs(s,t,MAXN);
+        }
+        return ans;
+    }
+};
+void solve(){
+    int n,m;
+    cin>>n>>m;
+    Flow flow(2*n+2);
+    for(int i=0;i<m;i++){
+        int x,y;
+        cin>>x>>y;
+        flow.add(x+n,y,1);
+    }
+    for(int i=1;i<=n;i++){
+        flow.add(2*n+1,n+i,1);
+        flow.add(i,2*n+2,1);
+    }
+    int ans=n-flow.work(2*n+1,2*n+2);
+    vector<int> in(n+1,0);
+    vector<vector<int>> v(n+1);
+    for(int i=1;i<=n;i++){
+        for(int id:flow.g[i+n]){
+            if(flow.e[id].first>n) continue;
+            if(flow.e[id^1].second){
+                v[i].push_back(flow.e[id].first);
+                in[flow.e[id].first]++;
+            }
+        }
+    }
+    for(int i=1;i<=n;i++){
+        if(in[i]) continue;
+        int now=i;
+        while(1){
+            cout<<now<<" ";
+            if(v[now].empty()) break;
+            now=v[now].front();
+        }
+        cout<<"\n";
+    }
+    cout<<ans<<"\n";
 }
 signed main(){
     cin.tie(nullptr)->sync_with_stdio(0);
