@@ -1752,6 +1752,8 @@ struct matrix{
 
 有一个大小为n*n的方格图，左下角为(0,0)，右上角为(n,n)，从左下角开始每次只能向右或者向上走一个单位，不能走到y=x上方（但可以触碰），有几种可能的路径
 
+1 1 2 5 14 42
+
 递推式：
 $$
 H_n=\frac{\binom{2n}{n}}{n+1}(n\ge2,n\in N_+)
@@ -2082,6 +2084,7 @@ struct Cantor{
             realupdate(1,1,n,x,delta);
         }
         int querysum(int x,int y){
+            if(x>y) return 0;
             return realquerysum(1,1,n,x,y);
         }
         int querykth(int k){
@@ -2092,7 +2095,7 @@ struct Cantor{
     int n;
     const int mod;
     SegmentTree tree;
-    Cantor(int n,int mod=1e20):n(n),mod(mod),tree(n){
+    Cantor(int n,int mod=1e18):n(n),mod(mod),tree(n){
         fac.resize(n+1);
         fac[0]=1;
         for(int i=1;i<=n;i++) fac[i]=fac[i-1]*i%mod;
@@ -2102,7 +2105,7 @@ struct Cantor{
         int ans=0;
         int sz=v.size();
         for(int i=0;i<sz;i++){
-            ans=(ans+fac[sz-i-1]*((v[i]-1-tree.querysum(1,v[i]-1))+mod)%mod)%mod;
+            ans=(ans+fac[sz-i-1]*((v[i]-1-tree.querysum(1,v[i]-1))%mod+mod)%mod)%mod;
             tree.update(v[i],1);
         }
         for(int i=0;i<sz;i++) tree.update(v[i],-1);
@@ -2289,7 +2292,11 @@ int CRT(vector<int> &a, vector<int> &r) {
 }
 ```
 
+### 切比雪夫距离与曼哈顿距离之间的转化
 
+曼哈顿意义下的坐标(x,y)，可以转化成切比雪夫意义下的(x+y,x-y)
+
+切比雪夫意义下的坐标(x,y)，可以转化成曼哈顿意义下的坐标($\frac{x+y}{2}$,$\frac{x-y}{2}$)
 
 ## 离线算法
 
