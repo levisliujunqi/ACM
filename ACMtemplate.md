@@ -2052,42 +2052,38 @@ struct Cantor{
         vector<int> tree;
         int n;
         SegmentTree(int n):tree((n<<2)+10,0),n(n){}
-        void pushup(int id,int l,int r){
-            tree[id]=tree[id<<1]+tree[id<<1|1];
-        }
-        void realupdate(int id,int l,int r,int x,int delta){
-            if(l==r){
-                tree[id]+=delta;
-                return;
-            }
-            int mid=l+(r-l>>1);
-            if(x<=mid) realupdate(id<<1,l,mid,x,delta);
-            else realupdate(id<<1|1,mid+1,r,x,delta);
-            pushup(id,l,r);
-        }
-        int realquerysum(int id,int l,int r,int x,int y){
-            if(x<=l&&r<=y) return tree[id];
-            int mid=l+(r-l>>1);
-            int ans=0;
-            if(x<=mid) ans+=realquerysum(id<<1,l,mid,x,y);
-            if(y>mid) ans+=realquerysum(id<<1|1,mid+1,r,x,y);
-            return ans;
-        }
-        int realquerykth(int id,int l,int r,int k){
-            if(l==r) return l;
-            int mid=l+(r-l>>1);
-            int lsum=mid-l+1-tree[id<<1];
-            if(k<=lsum) return realquerykth(id<<1,l,mid,k);
-            else return realquerykth(id<<1|1,mid+1,r,k-lsum);
-        }
         void update(int x,int delta){
+            function<void(int,int,int,int,int)> realupdate=[&](int id,int l,int r,int x,int delta){
+                tree[id]+=delta;
+                if(l==r){
+                    return;
+                }
+                int mid=l+(r-l>>1);
+                if(x<=mid) realupdate(id<<1,l,mid,x,delta);
+                else realupdate(id<<1|1,mid+1,r,x,delta);
+            };
             realupdate(1,1,n,x,delta);
         }
         int querysum(int x,int y){
             if(x>y) return 0;
+            function<int(int,int,int,int,int)> realquerysum=[&](int id,int l,int r,int x,int y){
+                if(x<=l&&r<=y) return tree[id];
+                int mid=l+(r-l>>1);
+                int ans=0;
+                if(x<=mid) ans+=realquerysum(id<<1,l,mid,x,y);
+                if(y>mid) ans+=realquerysum(id<<1|1,mid+1,r,x,y);
+                return ans;
+            };
             return realquerysum(1,1,n,x,y);
         }
         int querykth(int k){
+            function<int(int,int,int,int)> realquerykth=[&](int id,int l,int r,int k){
+                if(l==r) return l;
+                int mid=l+(r-l>>1);
+                int lsum=mid-l+1-tree[id<<1];
+                if(k<=lsum) return realquerykth(id<<1,l,mid,k);
+                else return realquerykth(id<<1|1,mid+1,r,k-lsum);
+            };
             return realquerykth(1,1,n,k);
         }
     };
@@ -2095,7 +2091,7 @@ struct Cantor{
     int n;
     const int mod;
     SegmentTree tree;
-    Cantor(int n,int mod=1e18):n(n),mod(mod),tree(n){
+    Cantor(int n,int mod=9e18):n(n),mod(mod),tree(n){
         fac.resize(n+1);
         fac[0]=1;
         for(int i=1;i<=n;i++) fac[i]=fac[i-1]*i%mod;
@@ -2105,7 +2101,7 @@ struct Cantor{
         int ans=0;
         int sz=v.size();
         for(int i=0;i<sz;i++){
-            ans=(ans+fac[sz-i-1]*((v[i]-1-tree.querysum(1,v[i]-1))%mod+mod)%mod)%mod;
+            ans=(ans+fac[sz-i-1]*(((v[i]-1-tree.querysum(1,v[i]-1))%mod+mod)%mod)%mod)%mod;
             tree.update(v[i],1);
         }
         for(int i=0;i<sz;i++) tree.update(v[i],-1);
