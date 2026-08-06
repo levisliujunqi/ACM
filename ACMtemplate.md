@@ -11224,7 +11224,7 @@ struct ModInt{
         v=v*o.v%MOD;
         return *this;
     }
-    ModInt qpow(int k){
+    ModInt qpow(int k) const{
         ModInt res=1,base=*this;
         while(k){
             if(k&1) res*=base;
