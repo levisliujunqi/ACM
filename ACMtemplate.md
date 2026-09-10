@@ -68,6 +68,66 @@ struct BIT{
 };
 ```
 
+## 珂朵莉树（ODT）
+
+维护同值区间，适合有区间赋值、区间数较少的题，单次操作最坏$O(n)$。
+
+```cpp
+struct ODT {
+    // 按左端点排序，维护闭区间[l,r]
+    struct Node {
+        int l, r;
+        mutable int val; // 允许直接修改set中的val
+        Node(int l, int r = 0, int val = 0) : l(l), r(r), val(val) {}
+        bool operator<(const Node &rhs) const {
+            return l < rhs.l;
+        }
+    };
+    int n;
+    set<Node> odt;
+    // n >= 1，将[1,n]初始化为val
+    ODT(int n, int val = 0) : n(n) {
+        odt.insert(Node(1, n, val));
+    }
+    // a从1开始编号，a[0]不使用
+    ODT(const vector<int> &a) : n((int)a.size() - 1) {
+        for (int i = 1; i <= n; ++i) {
+            odt.insert(Node(i, i, a[i]));
+        }
+    }
+    // 拆成[l,pos-1]和[pos,r]，返回右段；1 <= pos <= n+1
+    auto split(int pos) {
+        if (pos == n + 1) return odt.end();
+        auto it = odt.lower_bound(Node(pos));
+        if (it != odt.end() && it->l == pos) return it;
+        --it;
+        int l = it->l, r = it->r, val = it->val;
+        odt.erase(it);
+        odt.insert(Node(l, pos - 1, val));
+        return odt.insert(Node(pos, r, val)).first;
+    }
+    // 将[l,r]赋值为val，1 <= l <= r <= n
+    void assign(int l, int r, int val) {
+        // 先拆右边再拆左边，防止itl失效
+        auto itr = split(r + 1), itl = split(l);
+        odt.erase(itl, itr);
+        odt.insert(Node(l, r, val));
+    }
+};
+```
+
+区间操作示例
+
+```cpp
+ODT tree(a); // a[1..n]为初始数组；全为同一值也可用ODT tree(n, val)
+// 先拆右边再拆左边
+auto itr = tree.split(r + 1), itl = tree.split(l);
+// 遍历[itl,itr)，期间不要增删或拆分节点
+for (auto it = itl; it != itr; ++it) {
+    it->val += x;
+}
+```
+
 ## 线段树
 
 ```cpp
