@@ -89,10 +89,12 @@ struct ODT {
     ODT(int n, int val = 0) : n(n) {
         odt.insert(Node(1, n, val));
     }
-    // a从1开始编号，a[0]不使用
+    // a从1开始编号，a[0]不使用，连续同值合并成一段
     ODT(const vector<int> &a) : n((int)a.size() - 1) {
-        for (int i = 1; i <= n; ++i) {
-            odt.insert(Node(i, i, a[i]));
+        for (int l = 1, r; l <= n; l = r + 1) {
+            r = l;
+            while (r + 1 <= n && a[r + 1] == a[l]) ++r;
+            odt.insert(Node(l, r, a[l]));
         }
     }
     // 拆成[l,pos-1]和[pos,r]，返回右段；1 <= pos <= n+1
@@ -111,7 +113,19 @@ struct ODT {
         // 先拆右边再拆左边，防止itl失效
         auto itr = split(r + 1), itl = split(l);
         odt.erase(itl, itr);
-        odt.insert(Node(l, r, val));
+        auto it = odt.insert(Node(l, r, val)).first;
+        if (it != odt.begin() && prev(it)->val == val) {
+            l = prev(it)->l;
+            odt.erase(prev(it));
+            odt.erase(it);
+            it = odt.insert(Node(l, r, val)).first;
+        }
+        if (next(it) != odt.end() && next(it)->val == val) {
+            r = next(it)->r;
+            odt.erase(next(it));
+            odt.erase(it);
+            odt.insert(Node(l, r, val));
+        }
     }
 };
 ```
