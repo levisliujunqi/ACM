@@ -11344,3 +11344,93 @@ struct ModInt{
 };
 using mint=ModInt<998244353>;
 ```
+
+## FastMap
+```cpp
+template<class K=int, class V=int, int LF=33>
+struct FastMap {
+    vector<pair<K, V>> data;
+    vector<int> bucket;// 0=空槽, -1=墓碑, 否则下标+1
+    int ntomb = 0;
+    inline static const unsigned long long SEED = chrono::steady_clock::now().time_since_epoch().count();
+    static unsigned long long hash_key(K k) {
+        unsigned long long x = (unsigned long long)k + SEED + 0x9e3779b97f4a7c15ULL;
+        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        return x ^ (x >> 31);
+    }
+    int locate(K k) {
+        int m = (int)bucket.size() - 1, p = hash_key(k) & m;
+        while (bucket[p] && (bucket[p] == -1 || data[bucket[p] - 1].first != k))
+            p = (p + 1) & m;
+        return p;
+    }
+    int limit() { 
+        return (long long)bucket.size() * LF / 100; 
+    }
+    void rebuild(int cap) {
+        vector<int> next(cap);
+        int m = cap - 1;
+        for (int i = 0; i < (int)data.size(); ++i) {
+            int p = hash_key(data[i].first) & m;
+            while (next[p]) 
+                p = (p + 1) & m;
+            next[p] = i + 1;
+        }
+        data.reserve((long long)cap * LF / 100);
+        bucket.swap(next);
+        ntomb = 0;
+    }
+    auto find(K k) {
+        if (data.empty()) 
+            return end();
+        int id = bucket[locate(k)];
+        if (id > 0) 
+            return data.begin() + (id - 1);
+        return end();
+    }
+    V& operator[](K k) {
+        if (bucket.empty()) 
+            rebuild(8);
+        int p = locate(k);
+        if (bucket[p]) 
+            return data[bucket[p] - 1].second;
+        if ((int)data.size() + ntomb >= limit()) { 
+            reserve((int)data.size() + 1); 
+            p = locate(k); 
+        }
+        data.emplace_back(k, V{});
+        bucket[p] = (int)data.size();
+        return data.back().second;
+    }
+    bool erase(K k) {
+        if (data.empty()) 
+            return false;
+        int hole = locate(k);
+        if (!bucket[hole]) 
+            return false;
+        int id = bucket[hole] - 1;
+        bucket[hole] = -1;
+        ++ntomb;
+        if (id + 1 != (int)data.size()) {
+            int p = locate(data.back().first);
+            bucket[p] = id + 1;
+            data[id] = move(data.back());
+        }
+        data.pop_back();
+        return true;
+    }
+    void reserve(int n) {
+        if (n + ntomb <= limit()) 
+            return;
+        int cap = max(8, (int)bucket.size());
+        while ((long long)cap * LF / 100 < (long long)n) 
+            cap <<= 1;
+        rebuild(cap);
+    }
+    void clear() { data.clear(); fill(bucket.begin(), bucket.end(), 0u); ntomb = 0; }
+    int size() const { return (int)data.size(); }
+    bool empty() const { return data.empty(); }
+    auto begin() { return data.begin(); }            // for (auto& [k,v] : m)
+    auto end() { return data.end(); }
+};
+```
