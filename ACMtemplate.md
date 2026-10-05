@@ -68,6 +68,80 @@ struct BIT{
 };
 ```
 
+## 珂朵莉树（ODT）
+
+维护同值区间，适合有区间赋值、区间数较少的题，单次操作最坏$O(n)$。
+
+```cpp
+struct ODT {
+    // 按左端点排序，维护闭区间[l,r]
+    struct Node {
+        int l, r;
+        mutable int val; // 允许直接修改set中的val
+        Node(int l, int r = 0, int val = 0) : l(l), r(r), val(val) {}
+        bool operator<(const Node &rhs) const {
+            return l < rhs.l;
+        }
+    };
+    int n;
+    set<Node> odt;
+    // n >= 1，将[1,n]初始化为val
+    ODT(int n, int val = 0) : n(n) {
+        odt.insert(Node(1, n, val));
+    }
+    // a从1开始编号，a[0]不使用，连续同值合并成一段
+    ODT(const vector<int> &a) : n((int)a.size() - 1) {
+        for (int l = 1, r; l <= n; l = r + 1) {
+            r = l;
+            while (r + 1 <= n && a[r + 1] == a[l]) ++r;
+            odt.insert(Node(l, r, a[l]));
+        }
+    }
+    // 拆成[l,pos-1]和[pos,r]，返回右段；1 <= pos <= n+1
+    auto split(int pos) {
+        if (pos == n + 1) return odt.end();
+        auto it = odt.lower_bound(Node(pos));
+        if (it != odt.end() && it->l == pos) return it;
+        --it;
+        int l = it->l, r = it->r, val = it->val;
+        odt.erase(it);
+        odt.insert(Node(l, pos - 1, val));
+        return odt.insert(Node(pos, r, val)).first;
+    }
+    // 将[l,r]赋值为val，1 <= l <= r <= n
+    void assign(int l, int r, int val) {
+        // 先拆右边再拆左边，防止itl失效
+        auto itr = split(r + 1), itl = split(l);
+        odt.erase(itl, itr);
+        auto it = odt.insert(Node(l, r, val)).first;
+        if (it != odt.begin() && prev(it)->val == val) {
+            l = prev(it)->l;
+            odt.erase(prev(it));
+            odt.erase(it);
+            it = odt.insert(Node(l, r, val)).first;
+        }
+        if (next(it) != odt.end() && next(it)->val == val) {
+            r = next(it)->r;
+            odt.erase(next(it));
+            odt.erase(it);
+            odt.insert(Node(l, r, val));
+        }
+    }
+};
+```
+
+区间操作示例
+
+```cpp
+ODT tree(a); // a[1..n]为初始数组；全为同一值也可用ODT tree(n, val)
+// 先拆右边再拆左边
+auto itr = tree.split(r + 1), itl = tree.split(l);
+// 遍历[itl,itr)，期间不要增删或拆分节点
+for (auto it = itl; it != itr; ++it) {
+    it->val += x;
+}
+```
+
 ## 线段树
 
 ```cpp
@@ -8709,6 +8783,47 @@ prufer转无根树:
 3. n个点的无向完全图的生成树个数：$n^{n-2}$
 4. n个节点度依次为$d_1,d_2,...,d_n$的无根树共有$\frac{(n-2)!}{\prod_{i=1}^n(d_i-1)!}$个
 5. n个点的有标号有根树共有 $n^{(n-2)}*n=n^{n-1}$ 个
+
+## 全局最小割
+
+```cpp
+class Graph {
+    vector<vector<int>> adj; // 邻接矩阵
+    int n;
+public:
+    Graph(int n) : n(n), adj(n, vector<int>(n, 0)) {}
+    void addEdge(int u, int v, int w) {
+        adj[u][v] = adj[v][u] = w;
+    }
+    int stoerWagner() {
+        int res = INT_MAX;
+        for (int i = 0; i < n - 1; ++i) {
+            vector<int> ma(n, 0);
+            ma[0] = INT_MAX;  // 选择总是从 0 开始
+            int s = -1, t = -1;
+            for (int j = 0; j < n - i - 1; ++j) {
+                int a = max_element(ma.begin(), ma.end()) - ma.begin();
+                if (ma[a] == 0) return 0; // Graph is disconnected
+                ma[a] = -1;
+                if (j == n - i - 2) s = a;  // The second last node is s
+                for (int k = 0; k < n; ++k) {
+                    if (ma[k] >= 0) ma[k] += adj[a][k];
+                }
+            }
+            t = max_element(ma.begin(), ma.end()) - ma.begin();
+            res = min(res, ma[t]);
+            // Merge nodes s and t
+            for (int k = 0; k < n; ++k) {
+                if (k != s && k != t) {
+                    adj[s][k] += adj[t][k];
+                    adj[k][s] = adj[s][k];
+                    adj[t][k] = adj[k][t] = 0;
+                }
+            }
+        } return res;
+    }
+};
+```
 
 # 计算几何
 
