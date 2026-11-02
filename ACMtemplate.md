@@ -11205,6 +11205,18 @@ rm a.out out.txt err.txt
 read -n 1 -s
 ```
 
+Python
+
+```python
+import os, subprocess as s, time
+if s.run(["g++", "-O2", "main.cpp", "-o", "a"]).returncode == 0:
+    t = time.perf_counter()
+    p = s.run("./a", stdin=open("in.txt"), capture_output=True, text=True)
+    print(f"{p.stdout}\n--- err ---\n{p.stderr}\nTime: {time.perf_counter()-t:.3f}s")
+    if p.returncode: print("RE!!!!!!!")
+    os.remove("a")
+```
+
 PowerShell
 
 ```powershell
@@ -11242,6 +11254,28 @@ while true; do
     break
   fi
 done
+```
+
+Python
+
+```python
+import os, subprocess as s
+for src, out in [("maker", "m"), ("main", "a"), ("right", "r")]:
+    s.run(["g++", src + ".cpp", "-o", out], check=True)
+try:
+    n = 1
+    while True:
+        data = s.run("./m", capture_output=True, text=True, check=True).stdout
+        out = s.run("./a", input=data, capture_output=True, text=True).stdout
+        ans = s.run("./r", input=data, capture_output=True, text=True).stdout
+        if out == ans:
+            print(f"AC #{n}"); n += 1
+        else:
+            print(f"WA!\n--- Data ---\n{data}\n--- Main ---\n{out}\n--- Right ---\n{ans}")
+            break
+finally:
+    for x in "mar":
+        if os.path.exists(x): os.remove(x)
 ```
 
 PowerShell
