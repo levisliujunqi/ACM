@@ -68,6 +68,80 @@ struct BIT{
 };
 ```
 
+## 珂朵莉树（ODT）
+
+维护同值区间，适合有区间赋值、区间数较少的题，单次操作最坏$O(n)$。
+
+```cpp
+struct ODT {
+    // 按左端点排序，维护闭区间[l,r]
+    struct Node {
+        int l, r;
+        mutable int val; // 允许直接修改set中的val
+        Node(int l, int r = 0, int val = 0) : l(l), r(r), val(val) {}
+        bool operator<(const Node &rhs) const {
+            return l < rhs.l;
+        }
+    };
+    int n;
+    set<Node> odt;
+    // n >= 1，将[1,n]初始化为val
+    ODT(int n, int val = 0) : n(n) {
+        odt.insert(Node(1, n, val));
+    }
+    // a从1开始编号，a[0]不使用，连续同值合并成一段
+    ODT(const vector<int> &a) : n((int)a.size() - 1) {
+        for (int l = 1, r; l <= n; l = r + 1) {
+            r = l;
+            while (r + 1 <= n && a[r + 1] == a[l]) ++r;
+            odt.insert(Node(l, r, a[l]));
+        }
+    }
+    // 拆成[l,pos-1]和[pos,r]，返回右段；1 <= pos <= n+1
+    auto split(int pos) {
+        if (pos == n + 1) return odt.end();
+        auto it = odt.lower_bound(Node(pos));
+        if (it != odt.end() && it->l == pos) return it;
+        --it;
+        int l = it->l, r = it->r, val = it->val;
+        odt.erase(it);
+        odt.insert(Node(l, pos - 1, val));
+        return odt.insert(Node(pos, r, val)).first;
+    }
+    // 将[l,r]赋值为val，1 <= l <= r <= n
+    void assign(int l, int r, int val) {
+        // 先拆右边再拆左边，防止itl失效
+        auto itr = split(r + 1), itl = split(l);
+        odt.erase(itl, itr);
+        auto it = odt.insert(Node(l, r, val)).first;
+        if (it != odt.begin() && prev(it)->val == val) {
+            l = prev(it)->l;
+            odt.erase(prev(it));
+            odt.erase(it);
+            it = odt.insert(Node(l, r, val)).first;
+        }
+        if (next(it) != odt.end() && next(it)->val == val) {
+            r = next(it)->r;
+            odt.erase(next(it));
+            odt.erase(it);
+            odt.insert(Node(l, r, val));
+        }
+    }
+};
+```
+
+区间操作示例
+
+```cpp
+ODT tree(a); // a[1..n]为初始数组；全为同一值也可用ODT tree(n, val)
+// 先拆右边再拆左边
+auto itr = tree.split(r + 1), itl = tree.split(l);
+// 遍历[itl,itr)，期间不要增删或拆分节点
+for (auto it = itl; it != itr; ++it) {
+    it->val += x;
+}
+```
+
 ## 线段树
 
 ```cpp
@@ -11418,4 +11492,94 @@ struct ModInt{
     }
 };
 using mint=ModInt<998244353>;
+```
+
+## FastMap
+```cpp
+template<class K=int, class V=int, int LF=33>
+struct FastMap {
+    vector<pair<K, V>> data;
+    vector<int> bucket;// 0=空槽, -1=墓碑, 否则下标+1
+    int ntomb = 0;
+    inline static const unsigned long long SEED = chrono::steady_clock::now().time_since_epoch().count();
+    static unsigned long long hash_key(K k) {
+        unsigned long long x = (unsigned long long)k + SEED + 0x9e3779b97f4a7c15ULL;
+        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        return x ^ (x >> 31);
+    }
+    int locate(K k) {
+        int m = (int)bucket.size() - 1, p = hash_key(k) & m;
+        while (bucket[p] && (bucket[p] == -1 || data[bucket[p] - 1].first != k))
+            p = (p + 1) & m;
+        return p;
+    }
+    int limit() { 
+        return (long long)bucket.size() * LF / 100; 
+    }
+    void rebuild(int cap) {
+        vector<int> next(cap);
+        int m = cap - 1;
+        for (int i = 0; i < (int)data.size(); ++i) {
+            int p = hash_key(data[i].first) & m;
+            while (next[p]) 
+                p = (p + 1) & m;
+            next[p] = i + 1;
+        }
+        data.reserve((long long)cap * LF / 100);
+        bucket.swap(next);
+        ntomb = 0;
+    }
+    auto find(K k) {
+        if (data.empty()) 
+            return end();
+        int id = bucket[locate(k)];
+        if (id > 0) 
+            return data.begin() + (id - 1);
+        return end();
+    }
+    V& operator[](K k) {
+        if (bucket.empty()) 
+            rebuild(8);
+        int p = locate(k);
+        if (bucket[p]) 
+            return data[bucket[p] - 1].second;
+        if ((int)data.size() + ntomb >= limit()) { 
+            reserve((int)data.size() + 1); 
+            p = locate(k); 
+        }
+        data.emplace_back(k, V{});
+        bucket[p] = (int)data.size();
+        return data.back().second;
+    }
+    bool erase(K k) {
+        if (data.empty()) 
+            return false;
+        int hole = locate(k);
+        if (!bucket[hole]) 
+            return false;
+        int id = bucket[hole] - 1;
+        bucket[hole] = -1;
+        ++ntomb;
+        if (id + 1 != (int)data.size()) {
+            int p = locate(data.back().first);
+            bucket[p] = id + 1;
+            data[id] = move(data.back());
+        }
+        data.pop_back();
+        return true;
+    }
+    void reserve(int n) {
+        if (n + ntomb <= limit()) 
+            return;
+        int cap = max(8, (int)bucket.size());
+        while ((long long)cap * LF / 100 < (long long)n) 
+            cap <<= 1;
+        rebuild(cap);
+    }
+    void clear() { data.clear(); fill(bucket.begin(), bucket.end(), 0u); ntomb = 0; }
+    int size() const { return (int)data.size(); }
+    bool empty() const { return data.empty(); }
+    auto begin() { return data.begin(); }            // for (auto& [k,v] : m)
+    auto end() { return data.end(); }
+};
 ```
