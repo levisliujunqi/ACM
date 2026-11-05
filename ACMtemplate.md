@@ -5988,6 +5988,67 @@ $$
 
 一个完全图不同的生成树的数量有$n^{n-2}$种
 
+## 基环树
+```c++
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+void solve(){
+    int n;
+    cin>>n;
+    vector<vector<int>> v(n+1);
+    vector<bool> incycle(n+1,1);
+    vector<int> cycle;
+    vector<int> in(n+1);
+    for(int i=1;i<=n;i++){
+        int x,y;
+        cin>>x>>y;
+        v[x].push_back(y);
+        v[y].push_back(x);
+        in[x]++;
+        in[y]++;
+    }
+    queue<int> qu;
+    for(int i=1;i<=n;i++){
+        if(in[i]==1){
+            qu.push(i);
+        }
+    }
+    while(!qu.empty()){
+        int x=qu.front();
+        qu.pop();
+        --in[x];
+        incycle[x]=0;
+        for(int &to:v[x]){
+            if((--in[to])==1){
+                qu.push(to);
+            }
+        }
+    }
+    for(int i=1;i<=n;i++){
+        if(incycle[i]){
+            int first=i,pre=-1;
+            do{
+                cycle.push_back(i);
+                for(int &to:v[i]){
+                    if(!incycle[to]||to==pre) continue;
+                    pre=i;
+                    i=to;
+                    break;
+                }
+            }while(i!=first);
+            break;
+        }
+    }
+}
+signed main(){
+    cin.tie(nullptr)->sync_with_stdio(0);
+    int t=1;
+    //cin>>t;
+    while(t--) solve();
+}
+```
+
 ## 最小生成树
 
 ### Kruskal
